@@ -266,48 +266,109 @@ Ver `__tests__/` para ejemplos de tests. Los más útiles son los de `useDrawing
 
 ---
 
-## Build y deploy
+## Build y deploy automático (GitHub Actions)
 
-### iOS (App Store)
+Los tres workflows en `.github/workflows/` se encargan de todo.
+
+### PWA → GitHub Pages (automático en cada push a `main`)
+
+El workflow `deploy-pages.yml` corre en cada push a `main`:
+
+1. `npx expo export --platform web` genera `dist/`
+2. Se sube a GitHub Pages vía `actions/deploy-pages`
+
+**URL pública**: https://icarito.github.io/Rottapaint/
+
+El base path se inyecta automáticamente con la variable de entorno `EXPO_PUBLIC_BASE_URL` y lo lee `app.config.js`. No necesitás configurar nada — funciona desde el primer push.
+
+> Para activar Pages: ir a **Settings → Pages → Source → GitHub Actions** en el repositorio.
+
+---
+
+### iOS IPA (en tags `v*` o manualmente)
+
+El workflow `build-ios.yml` usa Fastlane en un runner `macos-14` con Xcode 15.4.
+
+**El job tiene un gate**: si `IOS_CERTIFICATE_BASE64` no está configurado como Secret, el workflow termina limpio con un `::notice::` — sin marcar fallo. Podés hacer push de tags mientras tanto sin rompernada.
+
+#### Cómo habilitarlo
+
+Agregá estos Secrets en **Settings → Secrets and variables → Actions**:
+
+| Secret | Cómo obtenerlo |
+|---|---|
+| `IOS_CERTIFICATE_BASE64` | `base64 -i TuCertificado.p12` |
+| `IOS_CERTIFICATE_PASSWORD` | Contraseña del .p12 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | `base64 -i TuProfile.mobileprovision` |
+| `IOS_PROVISIONING_PROFILE_NAME` | Nombre del profile (sin extensión) |
+
+El IPA queda como artefacto del workflow y, si el trigger fue un tag, se adjunta al Release de GitHub automáticamente.
+
+> **Nota**: el workflow asume bundle id `com.rottapaint.app` (el de `app.json`). Si tu provisioning profile usa uno diferente, ajustá `IOS_BUNDLE_ID` en `build-ios.yml`.
+
+---
+
+### Android APK (en tags `v*` o manualmente)
+
+El workflow `build-android.yml` regenera el proyecto nativo con `expo prebuild` y compila con Gradle.
+
+**Sin Secrets de firma**: produce un APK de debug funcional, útil para testear.  
+**Con Secrets de firma**: produce un APK de release listo para Play Store.
+
+#### Secrets opcionales para APK firmado
+
+| Secret | Descripción |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i release.keystore` |
+| `ANDROID_KEY_ALIAS` | Alias de la clave en el keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Contraseña del keystore |
+| `ANDROID_KEY_PASSWORD` | Contraseña de la clave |
+
+También podés disparar el workflow manualmente desde Actions y elegir `debug` o `release` en el input `build_type`.
+
+---
+
+### Build y deploy local (sin CI)
 
 ```bash
-# Build en la nube de Expo (no requiere Mac)
-eas build --platform ios --profile production
-
-# Enviar al App Store
-eas submit --platform ios
-```
-
-### PWA / Web
-
-```bash
+# Web / PWA
 npm run build:web     # genera dist/
-npm run serve:web     # sirve dist/ localmente en http://localhost:3000
+npm run serve:web     # sirve dist/ localmente
 
-# Deploy en Vercel
-npx vercel dist/
+# iOS (requiere Mac + Xcode)
+npx expo prebuild --platform ios
+cd ios && pod install && cd ..
+npx expo run:ios --configuration Release
 
-# Deploy en Netlify
-npx netlify deploy --dir dist/ --prod
+# Android (requiere Android SDK)
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease
 ```
 
-### Android
+---
 
-```bash
-eas build --platform android --profile production
-eas submit --platform android
-```
+## Notas pendientes
+
+> Dos cosas honestas a tener en cuenta antes de publicar:
+
+- **Íconos placeholder**: los assets en `assets/` son funcionales pero provisorios (círculo con una "R"). Reemplazalos con el diseño real antes de subir al App Store o de darle el link de la PWA a alguien. Specs:
+  - `icon.png` — 1024×1024 px, sin transparencia, sin esquinas (Apple las agrega)
+  - `adaptive-icon.png` — 1024×1024 px, con zona segura para Android
+  - `splash.png` — 1284×2778 px recomendado
+  - `favicon.png` — 64×64 px (para la PWA en browser)
+
+- **Bundle ID de iOS**: el workflow de CI asume `com.rottapaint.app`. Si tu provisioning profile usa un bundle id diferente, cambiá la variable `IOS_BUNDLE_ID` en `.github/workflows/build-ios.yml` antes de agregar los Secrets.
 
 ---
 
 ## Checklist App Store
 
-- [ ] Ícono en `assets/icon.png` (1024×1024 px, sin transparencia, sin esquinas redondeadas — Apple las agrega)
-- [ ] Splash en `assets/splash.png` (recomendado 1284×2778 px)
+- [ ] Reemplazar íconos placeholder en `assets/`
 - [ ] `bundleIdentifier` único en `app.json` → `com.tuempresa.rottapaint`
 - [ ] Apple Developer Program ($99/año) en [developer.apple.com](https://developer.apple.com/programs/)
 - [ ] App creada en [App Store Connect](https://appstoreconnect.apple.com)
-- [ ] Completar `eas.json` con `appleId`, `ascAppId`, `appleTeamId`
+- [ ] Agregar Secrets de iOS en el repo (ver tabla arriba)
+- [ ] Crear un tag `v1.0.0` para disparar el build de CI
 - [ ] Clasificación de edad: **4+**
 - [ ] Capturas de pantalla: iPhone 6.9", iPad Pro 13"
 
