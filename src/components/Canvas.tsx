@@ -127,7 +127,7 @@ export const Canvas = React.memo(function Canvas({
 
   return (
     <View style={[styles.container, { backgroundColor }]} {...updatedResponder.panHandlers}>
-      <Svg style={StyleSheet.absoluteFill}>
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Rect width="100%" height="100%" fill={backgroundColor} />
         {paths.map((path) => (
           <DrawingPathElement key={path.id} path={path} backgroundColor={backgroundColor} />
