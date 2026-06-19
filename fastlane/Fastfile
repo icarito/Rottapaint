@@ -1,0 +1,48 @@
+# Fastlane para builds de iOS sin EAS/Expo cloud.
+# Usa tus propios certificados (.p12) y provisioning profile, inyectados
+# como Secrets en GitHub Actions. Ver .github/workflows/build-ios.yml.
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build firmado del .ipa para distribución"
+  lane :build do
+    # Keychain temporal donde se importa el certificado en CI.
+    keychain_name = "rottapaint-ci.keychain"
+    keychain_password = SecureRandom.base64
+
+    create_keychain(
+      name: keychain_name,
+      password: keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+    )
+
+    import_certificate(
+      certificate_path: ENV["IOS_CERTIFICATE_PATH"],
+      certificate_password: ENV["IOS_CERTIFICATE_PASSWORD"],
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+
+    # Instala el provisioning profile descargado en el workflow.
+    install_provisioning_profile(path: ENV["IOS_PROVISIONING_PROFILE_PATH"])
+
+    build_app(
+      workspace: "ios/Rottapaint.xcworkspace",
+      scheme: "Rottapaint",
+      configuration: "Release",
+      export_method: ENV["IOS_EXPORT_METHOD"] || "app-store",
+      output_directory: "build",
+      output_name: "Rottapaint.ipa",
+      clean: true,
+      export_options: {
+        provisioningProfiles: {
+          ENV["IOS_BUNDLE_ID"] => ENV["IOS_PROVISIONING_PROFILE_NAME"]
+        }
+      }
+    )
+  end
+end
