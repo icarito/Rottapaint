@@ -1,0 +1,80 @@
+name: Build iOS IPA
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  # Gate: solo corre cuando ya cargaste tus certificados en Secrets.
+  # Hasta entonces el workflow termina limpio sin marcar fallo.
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          CERT: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+        run: |
+          if [ -n "$CERT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets de iOS no configurados; se omite la build. Añade IOS_CERTIFICATE_BASE64 y compañía para habilitarla."
+          fi
+
+  build:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.ready == 'true'
+    runs-on: macos-14
+    env:
+      IOS_BUNDLE_ID: com.rottapaint.app
+      IOS_EXPORT_METHOD: app-store
+      IOS_PROVISIONING_PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native ios/ project
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install
+
+      - name: Decode signing assets
+        # Materializa el .p12 y el provisioning profile desde Secrets.
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "${{ secrets.IOS_CERTIFICATE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/signing/cert.p12"
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/signing/profile.mobileprovision"
+          echo "IOS_CERTIFICATE_PATH=$RUNNER_TEMP/signing/cert.p12" >> "$GITHUB_ENV"
+          echo "IOS_PROVISIONING_PROFILE_PATH=$RUNNER_TEMP/signing/profile.mobileprovision" >> "$GITHUB_ENV"
+
+      - name: Build IPA with Fastlane
+        run: bundle exec fastlane ios build || npx fastlane ios build
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rottapaint-ios-ipa
+          path: build/*.ipa
+          if-no-files-found: error
+
+      - name: Attach IPA to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.ipa
