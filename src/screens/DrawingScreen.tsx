@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import { BrushConfig, Drawing } from '../types';
 import { BRUSHES, DEFAULT_BRUSH } from '../utils/brushes';
 import { DEFAULT_COLOR } from '../utils/colors';
 import { confirmDialog } from '../utils/confirm';
+import { impactLight, notifySuccess, notifyWarning } from '../utils/haptics';
 import { buildThumbnailSvg, pointsToSvgPath } from '../utils/svgPath';
 
 interface DrawingScreenProps {
@@ -43,12 +43,12 @@ export function DrawingScreen({ drawing, onBack, onSave }: DrawingScreenProps) {
   }, []);
 
   const handleUndo = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    impactLight();
     undo();
   }, [undo]);
 
   const handleRedo = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    impactLight();
     redo();
   }, [redo]);
 
@@ -59,7 +59,7 @@ export function DrawingScreen({ drawing, onBack, onSave }: DrawingScreenProps) {
       confirmLabel: 'Borrar todo',
       destructive: true,
       onConfirm: () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        notifyWarning();
         clear();
       },
     });
@@ -98,7 +98,7 @@ export function DrawingScreen({ drawing, onBack, onSave }: DrawingScreenProps) {
       };
 
       await onSave(updated);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      notifySuccess();
       setIsSaving(false);
     },
     [drawing, paths, onSave],
