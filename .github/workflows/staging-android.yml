@@ -43,24 +43,27 @@ jobs:
         # Las carpetas nativas están en .gitignore; se regeneran en CI.
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        # La versión de Kotlin (1.9.25, requerida por el Compose Compiler de
-        # Expo SDK 52) la fija expo-build-properties durante el prebuild.
-        run: ./gradlew assembleDebug --no-daemon
+        # assembleRelease produce un APK autónomo (JS empaquetado dentro,
+        # arranca sin Metro) y descarta las libs de debug. Lo firmamos con el
+        # keystore debug que ya trae el proyecto (apto para probar, no Play
+        # Store). Limitamos a arm64-v8a + armeabi-v7a (los x86 son solo
+        # emuladores) para reducir el tamaño a la mitad. Kotlin 1.9.25,
+        # proguard y shrinkResources los fija expo-build-properties.
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Collect APK
         run: |
           mkdir -p artifacts
-          # Renombramos para que la descarga del release sea reconocible.
-          find android/app/build/outputs/apk/debug -name '*.apk' \
-            -exec cp {} artifacts/rottapaint-staging-debug.apk \;
+          find android/app/build/outputs/apk/release -name '*.apk' \
+            -exec cp {} artifacts/rottapaint-staging.apk \;
           ls -la artifacts
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rottapaint-staging-debug-apk
+          name: rottapaint-staging-apk
           path: artifacts/*.apk
           if-no-files-found: error
 
@@ -73,11 +76,12 @@ jobs:
           # Mueve el tag al commit actual en cada ejecución.
           target_commitish: ${{ github.sha }}
           body: |
-            APK **debug** generado automáticamente desde el último commit de `main`.
+            APK **release autónomo** (arranca sin Metro) generado automáticamente
+            desde el último commit de `main`. Arquitecturas: arm64-v8a + armeabi-v7a.
 
             - Commit: ${{ github.sha }}
             - Build: ${{ github.run_number }}
 
-            ⚠️ Build de desarrollo sin firmar para producción. Instalá habilitando
-            "orígenes desconocidos" en Android.
+            ⚠️ Firmado con el keystore *debug* (apto para probar, no para Play
+            Store). Instalá habilitando "orígenes desconocidos" en Android.
           files: artifacts/*.apk
