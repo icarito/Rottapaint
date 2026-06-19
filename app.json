@@ -74,7 +74,8 @@
           "savePhotosPermission": "Rottapaint necesita acceso para guardar tus dibujos.",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
