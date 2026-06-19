@@ -1,45 +1,101 @@
-const CACHE_NAME = 'rottapaint-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/static/js/main.chunk.js',
-  '/static/js/bundle.js',
-  '/static/css/main.chunk.css',
-  '/manifest.json',
-];
+// Service worker de Rottapaint.
+//
+// Estrategia:
+//  - Navegación / HTML  -> network-first: siempre intenta la red, así un
+//    nuevo deploy se ve enseguida; solo cae al cache si estás offline.
+//    (Esto evita el bug de servir HTML viejo tras cada despliegue.)
+//  - Assets con hash (/_expo/, /assets/) -> cache-first: el nombre cambia
+//    en cada build, así que cachearlos para siempre es seguro y rápido.
+//  - Resto de GET -> stale-while-revalidate.
+//
+// Sube CACHE_VERSION cuando cambies esta lógica para invalidar caches viejos.
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `rottapaint-${CACHE_VERSION}`;
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
-  );
+// El SW se registra con scope = base path (p. ej. "/Rottapaint/" en Pages,
+// "/" en local). Derivamos el prefijo de self.location para no hardcodearlo.
+const BASE = new URL('./', self.location).pathname; // "/Rottapaint/" o "/"
+
+self.addEventListener('install', () => {
+  // Activa esta versión de inmediato sin esperar a que cierren pestañas.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
-    ),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+      );
+      await self.clients.claim();
+    })(),
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+function isImmutableAsset(url) {
+  return (
+    url.pathname.startsWith(`${BASE}_expo/`) ||
+    url.pathname.startsWith(`${BASE}assets/`)
+  );
+}
 
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  // Solo manejamos peticiones same-origin.
+  if (url.origin !== self.location.origin) return;
+
+  // Navegación (carga de páginas): network-first.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(request);
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, fresh.clone());
+          return fresh;
+        } catch {
+          const cached = await caches.match(request);
+          return cached || caches.match(BASE);
+        }
+      })(),
+    );
+    return;
+  }
+
+  // Assets versionados con hash: cache-first.
+  if (isImmutableAsset(url)) {
+    event.respondWith(
+      (async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        const fresh = await fetch(request);
+        if (fresh.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, fresh.clone());
+        }
+        return fresh;
+      })(),
+    );
+    return;
+  }
+
+  // Resto: stale-while-revalidate.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
+    (async () => {
+      const cached = await caches.match(request);
+      const network = fetch(request)
         .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+          if (response.ok) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
           }
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match('/'));
-    }),
+        .catch(() => cached);
+      return cached || network;
+    })(),
   );
 });

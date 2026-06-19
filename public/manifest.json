@@ -2,20 +2,21 @@
   "name": "Rottapaint – App de Dibujo",
   "short_name": "Rottapaint",
   "description": "Aplicación de dibujo para niños. ¡Pintá y divertite!",
-  "start_url": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#FFF9F0",
   "theme_color": "#FF6B6B",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
