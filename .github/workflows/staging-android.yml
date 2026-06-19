@@ -45,7 +45,9 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        # Forzamos Kotlin 1.9.25: el Compose Compiler 1.5.15 que trae Expo
+        # SDK 52 lo exige y algunos módulos lo bajan a 1.9.24.
+        run: ./gradlew assembleDebug --no-daemon -Pandroid.kotlinVersion=1.9.25
 
       - name: Collect APK
         run: |
