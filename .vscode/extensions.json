@@ -1,0 +1,34 @@
+{
+  "recommendations": [
+    // React Native + Expo
+    "expo.vscode-expo-tools",
+    "msjsdiag.vscode-react-native",
+
+    // TypeScript y calidad de código
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-next",
+
+    // Testing
+    "orta.vscode-jest",
+
+    // Git
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // Productividad general
+    "christian-kohler.path-intellisense",
+    "bradlc.vscode-tailwindcss",
+    "PKief.material-icon-theme",
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+
+    // SVG (útil para editar los paths del canvas)
+    "jock.svg",
+    "cssho.vscode-svgviewer",
+
+    // Colores (para la paleta)
+    "naumovs.color-highlight",
+    "antfu.iconify"
+  ]
+}

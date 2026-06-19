@@ -1,0 +1,46 @@
+{
+  // Editor base
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.rulers": [100],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // TypeScript
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+
+  // ESLint
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+
+  // Expo
+  "expo.autoSetupTSConfig": true,
+
+  // Excluir de búsquedas (mejora rendimiento)
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.expo": true,
+    "**/package-lock.json": true
+  },
+  "files.exclude": {
+    "**/.expo": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.expo/**": true
+  },
+
+  // Jest
+  "jest.jestCommandLine": "npm test --",
+  "jest.autoRun": "off",
+
+  // SVG preview en archivos .svg
+  "svgviewer.enableautopreview": false,
+
+  // Color highlight en archivos de colores
+  "colorHighlight.enable": true
+}
