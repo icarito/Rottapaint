@@ -1,0 +1,81 @@
+name: Staging Android APK
+
+# Construye un APK debug en cada push a main y lo publica en un release
+# rolling con el tag "staging". El tag se mueve al último commit en cada
+# ejecución, así que la descarga de "staging" siempre es la build más
+# reciente. No requiere certificados (gradle firma con el keystore debug).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native android/ project
+        # Las carpetas nativas están en .gitignore; se regeneran en CI.
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Collect APK
+        run: |
+          mkdir -p artifacts
+          # Renombramos para que la descarga del release sea reconocible.
+          find android/app/build/outputs/apk/debug -name '*.apk' \
+            -exec cp {} artifacts/rottapaint-staging-debug.apk \;
+          ls -la artifacts
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rottapaint-staging-debug-apk
+          path: artifacts/*.apk
+          if-no-files-found: error
+
+      - name: Publish to "staging" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: staging
+          name: Staging (último build de main)
+          prerelease: true
+          # Mueve el tag al commit actual en cada ejecución.
+          target_commitish: ${{ github.sha }}
+          body: |
+            APK **debug** generado automáticamente desde el último commit de `main`.
+
+            - Commit: ${{ github.sha }}
+            - Build: ${{ github.run_number }}
+
+            ⚠️ Build de desarrollo sin firmar para producción. Instalá habilitando
+            "orígenes desconocidos" en Android.
+          files: artifacts/*.apk
