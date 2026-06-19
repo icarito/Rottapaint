@@ -8,7 +8,7 @@ type Screen = { name: 'home' } | { name: 'drawing'; drawing: Drawing };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
-  const { save, update } = useStorage();
+  const { save } = useStorage();
 
   const handleOpenDrawing = useCallback((drawing: Drawing) => {
     setScreen({ name: 'drawing', drawing });
@@ -25,15 +25,13 @@ export default function App() {
   const handleSave = useCallback(
     async (drawing: Drawing) => {
       if (screen.name !== 'drawing') return;
-      const isNew = !drawing.createdAt || drawing.createdAt === drawing.updatedAt;
-      if (isNew) {
-        await save(drawing);
-      } else {
-        await update(drawing);
-      }
+      // saveDrawing es idempotente: persiste el dibujo y lo añade al índice
+      // solo si aún no está. Llamarlo siempre evita perder dibujos nuevos
+      // cuya marca de tiempo ya difería de createdAt al guardar.
+      await save(drawing);
       setScreen({ name: 'drawing', drawing });
     },
-    [screen, save, update],
+    [screen, save],
   );
 
   if (screen.name === 'drawing') {

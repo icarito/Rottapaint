@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrushPicker } from '../components/BrushPicker';
 import { Canvas } from '../components/Canvas';
@@ -11,6 +11,7 @@ import { useDrawing } from '../hooks/useDrawing';
 import { BrushConfig, Drawing } from '../types';
 import { BRUSHES, DEFAULT_BRUSH } from '../utils/brushes';
 import { DEFAULT_COLOR } from '../utils/colors';
+import { confirmDialog } from '../utils/confirm';
 import { buildThumbnailSvg, pointsToSvgPath } from '../utils/svgPath';
 
 interface DrawingScreenProps {
@@ -52,21 +53,16 @@ export function DrawingScreen({ drawing, onBack, onSave }: DrawingScreenProps) {
   }, [redo]);
 
   const handleClear = useCallback(() => {
-    Alert.alert(
-      '¿Borrar todo?',
-      '¿Querés limpiar el canvas? Esta acción se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Borrar todo',
-          style: 'destructive',
-          onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            clear();
-          },
-        },
-      ],
-    );
+    confirmDialog({
+      title: '¿Borrar todo?',
+      message: '¿Querés limpiar el canvas? Esta acción se puede deshacer.',
+      confirmLabel: 'Borrar todo',
+      destructive: true,
+      onConfirm: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        clear();
+      },
+    });
   }, [clear]);
 
   const handleSavePress = useCallback(() => {
@@ -110,14 +106,14 @@ export function DrawingScreen({ drawing, onBack, onSave }: DrawingScreenProps) {
 
   const handleBack = useCallback(() => {
     if (paths.length > 0 && paths !== drawing.paths) {
-      Alert.alert(
-        '¿Salir sin guardar?',
-        'Tenés cambios sin guardar. ¿Querés salir de todas formas?',
-        [
-          { text: 'Quedarme', style: 'cancel' },
-          { text: 'Salir', style: 'destructive', onPress: onBack },
-        ],
-      );
+      confirmDialog({
+        title: '¿Salir sin guardar?',
+        message: 'Tenés cambios sin guardar. ¿Querés salir de todas formas?',
+        confirmLabel: 'Salir',
+        cancelLabel: 'Quedarme',
+        destructive: true,
+        onConfirm: onBack,
+      });
     } else {
       onBack();
     }

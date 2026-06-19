@@ -1,7 +1,8 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { Drawing } from '../types';
+import { confirmDialog } from '../utils/confirm';
 
 interface DrawingCardProps {
   drawing: Drawing;
@@ -16,18 +17,13 @@ function formatDate(ts: number): string {
 
 export function DrawingCard({ drawing, onOpen, onDelete }: DrawingCardProps) {
   const handleDelete = () => {
-    Alert.alert(
-      '¿Borrar dibujo?',
-      `¿Querés eliminar "${drawing.name}"? No se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Borrar',
-          style: 'destructive',
-          onPress: () => onDelete(drawing.id),
-        },
-      ],
-    );
+    confirmDialog({
+      title: '¿Borrar dibujo?',
+      message: `¿Querés eliminar "${drawing.name}"? No se puede deshacer.`,
+      confirmLabel: 'Borrar',
+      destructive: true,
+      onConfirm: () => onDelete(drawing.id),
+    });
   };
 
   return (
