@@ -1,14 +1,13 @@
-# Fastlane para builds de iOS sin EAS/Expo cloud.
-# Usa tus propios certificados (.p12) y provisioning profile, inyectados
-# como Secrets en GitHub Actions. Ver .github/workflows/build-ios.yml.
+# Fastlane for iOS builds without EAS/Expo cloud.
+# Uses custom certificates (.p12) and provisioning profile injected
+# as Secrets in GitHub Actions. See .github/workflows/build-ios.yml.
 
 default_platform(:ios)
 
 platform :ios do
-  desc "Build firmado del .ipa para distribución"
+  desc "Build signed .ipa for distribution"
   lane :build do
-    # Keychain temporal donde se importa el certificado en CI.
-    keychain_name = "rottapaint-ci.keychain"
+    keychain_name = "odisea-dashboard-ci.keychain"
     keychain_password = SecureRandom.base64
 
     create_keychain(
@@ -27,16 +26,15 @@ platform :ios do
       keychain_password: keychain_password
     )
 
-    # Instala el provisioning profile descargado en el workflow.
     install_provisioning_profile(path: ENV["IOS_PROVISIONING_PROFILE_PATH"])
 
     build_app(
-      workspace: "ios/Rottapaint.xcworkspace",
-      scheme: "Rottapaint",
+      workspace: "ios/OdiseaDashboard.xcworkspace",
+      scheme: "OdiseaDashboard",
       configuration: "Release",
       export_method: ENV["IOS_EXPORT_METHOD"] || "app-store",
       output_directory: "build",
-      output_name: "Rottapaint.ipa",
+      output_name: "OdiseaDashboard.ipa",
       clean: true,
       export_options: {
         provisioningProfiles: {

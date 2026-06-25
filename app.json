@@ -1,24 +1,22 @@
 {
   "expo": {
-    "name": "Rottapaint",
-    "slug": "rottapaint",
+    "name": "Odisea Dashboard",
+    "slug": "odisea-dashboard",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "scheme": "rottapaint",
-    "userInterfaceStyle": "light",
+    "scheme": "odisea-dashboard",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFF9F0"
+      "backgroundColor": "#0A0E14"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rottapaint.app",
+      "bundleIdentifier": "dev.odisea.dashboard",
       "buildNumber": "1",
       "infoPlist": {
-        "NSPhotoLibraryAddUsageDescription": "Rottapaint needs access to save your drawings to Photos.",
-        "NSPhotoLibraryUsageDescription": "Rottapaint needs access to your Photos library.",
         "UIRequiresFullScreen": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
@@ -36,25 +34,21 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFF9F0"
+        "backgroundColor": "#0A0E14"
       },
-      "package": "com.rottapaint.app",
+      "package": "dev.odisea.dashboard",
       "versionCode": 1,
-      "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "VIBRATE"
-      ]
+      "permissions": []
     },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/favicon.png",
-      "name": "Rottapaint",
-      "shortName": "Rottapaint",
-      "description": "App de dibujo para niños",
-      "themeColor": "#FF6B6B",
-      "backgroundColor": "#FFF9F0",
+      "name": "Odisea Dashboard",
+      "shortName": "Odisea",
+      "description": "Odisea telemetry dashboard",
+      "themeColor": "#0A0E14",
+      "backgroundColor": "#0A0E14",
       "display": "standalone",
       "orientation": "any"
     },
@@ -66,28 +60,10 @@
         {
           "image": "./assets/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FFF9F0"
+          "backgroundColor": "#0A0E14"
         }
       ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "Rottapaint necesita acceso para guardar tus dibujos en Fotos.",
-          "savePhotosPermission": "Rottapaint necesita acceso para guardar tus dibujos.",
-          "isAccessMediaLocationEnabled": true
-        }
-      ],
-      "expo-asset",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "1.9.25",
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
-          }
-        }
-      ]
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
