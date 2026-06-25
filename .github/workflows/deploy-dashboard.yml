@@ -119,4 +119,5 @@ jobs:
           DEPLOY_URL: https://odisea.educa.juegos/skia-debug
         run: |
           set -euo pipefail
-          curl -fsS "$DEPLOY_URL" | grep -E '_expo/static/js/web/entry-[^"]+\.js'
+          curl --retry 20 --retry-delay 3 --retry-connrefused --retry-all-errors \
+            -fsS "$DEPLOY_URL" | grep -E '_expo/static/js/web/entry-[^"]+\.js'
