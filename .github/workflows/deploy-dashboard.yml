@@ -1,0 +1,122 @@
+name: Deploy Odisea Dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: odisea-dashboard-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Export web bundle
+        env:
+          EXPO_PUBLIC_DASHBOARD_VERSION: ${{ github.sha }}
+          EXPO_PUBLIC_GIT_COMMIT: ${{ github.sha }}
+        run: npm run build:web
+
+      - name: Add SSH key
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/odisea_deploy
+          chmod 600 ~/.ssh/odisea_deploy
+
+      - name: Trust deploy host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload dashboard to staging dir
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || vars.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/odisea_deploy -o IdentitiesOnly=yes"
+          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+          $SSH "$REMOTE" 'mkdir -p /home/ubuntu/anna-central/static/.dashboard.actions-stage'
+          rsync -az --delete \
+            -e "$SSH" \
+            dist/ "$REMOTE:/home/ubuntu/anna-central/static/.dashboard.actions-stage/"
+
+      - name: Promote dashboard atomically
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || vars.DEPLOY_USER }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/odisea_deploy -o IdentitiesOnly=yes"
+          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+          $SSH "$REMOTE" "GITHUB_SHA='$GITHUB_SHA' bash -s" <<'SH'
+          set -euo pipefail
+          DEPLOY_DIR=/home/ubuntu/anna-central
+          STATIC_DIR="$DEPLOY_DIR/static"
+          TARGET="$STATIC_DIR/dashboard"
+          STAGE="$STATIC_DIR/.dashboard.actions-stage"
+          OLD="$STATIC_DIR/dashboard.old"
+          LOCK="$DEPLOY_DIR/.deploy.lock"
+
+          flock -w 600 "$LOCK" bash -s <<'LOCKED'
+          set -euo pipefail
+          DEPLOY_DIR=/home/ubuntu/anna-central
+          STATIC_DIR="$DEPLOY_DIR/static"
+          TARGET="$STATIC_DIR/dashboard"
+          STAGE="$STATIC_DIR/.dashboard.actions-stage"
+          OLD="$STATIC_DIR/dashboard.old"
+
+          test -f "$STAGE/index.html"
+          if [ -d "$TARGET/scene-data" ] && [ ! -e "$STAGE/scene-data" ]; then
+            cp -a "$TARGET/scene-data" "$STAGE/scene-data"
+          fi
+          rm -rf "$OLD"
+          [ -d "$TARGET" ] && mv "$TARGET" "$OLD"
+          mv "$STAGE" "$TARGET"
+          rm -rf "$OLD"
+          LOCKED
+
+          sudo mkdir -p /etc/systemd/system/odisea-central.service.d
+          sudo tee /etc/systemd/system/odisea-central.service.d/dashboard-version.conf >/dev/null <<EOF
+          [Service]
+          Environment=ODISEA_EXPO_DASHBOARD_VERSION=${GITHUB_SHA:0:12}
+          Environment=ODISEA_EXPO_DASHBOARD_SHA=$GITHUB_SHA
+          EOF
+          sudo systemctl daemon-reload
+          sudo systemctl restart odisea-central.service
+          SH
+
+      - name: Verify production
+        env:
+          DEPLOY_URL: https://odisea.educa.juegos/skia-debug
+        run: |
+          set -euo pipefail
+          curl -fsS "$DEPLOY_URL" | grep -E '_expo/static/js/web/entry-[^"]+\.js'
